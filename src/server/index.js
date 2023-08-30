@@ -101,7 +101,8 @@ const DISABLELOCK=100;
 const ENABLELOCK=101;
 
 const PING_INTERVAL=2;
-
+var g_cursor_x = -1;
+var g_cursor_y = -1;
 var JsonDB=require('node-json-db');
 var db = new JsonDB('root',true,false);
 var server = dgram.createSocket('udp4');
@@ -1002,6 +1003,9 @@ function produce_linphone_video(data)
 	var phones = g_phones.split(',');
 	console.log('XXXX');
 	console.log(phones);
+	ctx.fillStyle = '#FFF'
+	if (g_cursor_x != -1)
+		ctx.fillRect(g_cursor_x-5,g_cursor_y-5,10,10);
 	for(i=0;i<phones.length;i++) {
 		if (i != g_linephone_num) {
 			ctx.fillStyle = '#FFF'
@@ -1058,9 +1062,11 @@ function check_cursor(x,y)
 	var i;
 	if (g_phones=='') return;
 	var phones = g_phones.split(',');
+	g_cursor_x = x;
+	g_cursor_y = y;
 
 	if (x > 400) return;
-	y -= 20;
+	y -= 40;
 	if (y<0) return;
 	var l = y/80;
 	console.log('l='+l);
