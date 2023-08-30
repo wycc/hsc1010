@@ -1368,7 +1368,7 @@ function weather_translate(code,text)
 
 function query_all_equip()
 {
-	//exec("/usr/bin/watchdog kick");
+	exec("/usr/bin/watchdog kick");
 	Network_Fetch(function(cfg) {
 
 		Object.keys(g_list).map(function(m) {
@@ -1767,7 +1767,7 @@ setTimeout(function() {
 setInterval(weather_update, 10*1000);
 setInterval(search_all_equip, 10*1000);
 if (watchdog_init==0) {
-	//exec("/usr/bin/watchdog set 160");
+	exec("/usr/bin/watchdog set 30");
 	watchdog_init = 1;
 }
 
@@ -1776,7 +1776,7 @@ function fetch_phones()
 	console.log("fetch phones for mac "+g_report_mac);
 	var options = {
 		hostname: 'plm.homescenario.com',
-		path:'/phones?serialno='+g_report_mac,
+		path:'/phones?serialno='+g_report_mac+'&sipID='+db.getData('/sipID'),
 		port:443,
 		timeout:200,
 		method:'GET'
