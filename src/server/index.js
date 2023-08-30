@@ -1404,7 +1404,8 @@ function query_all_equip()
 			b[45] = parseInt(ips[1]);
 			b[46] = parseInt(ips[2]);
 			b[47] = parseInt(ips[3]);
-			if (g_phones != '') {
+			var targetaddr = db.getData('/roomID')
+			if (targetaddr == addr.substr(1) && (g_phones != '')) {
 				b[44+24*8] = 0xaa;
 				b[44+24*8+1] = 0xff;
 				var siplist = g_phones;
