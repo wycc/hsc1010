@@ -1,3 +1,4 @@
+const { createCanvas, loadImage } = require('canvas')
 const express = require('express');
 const querystring = require('querystring');
 const os = require('os');
@@ -694,9 +695,9 @@ function portal_report(mac,addr,st,num,cb)
 	console.log("status="+st+" addr="+addr+" num="+num+" mac="+mac+ " ");
 	var url;
 	if (st) {
-		url = '/portal/poll/notifyst?serialno='+mac+'&arm='+st+'&z=0&l=0&force=y'
+		url = '/portal/poll/notifyst?serialno='+mac+'&arm='+st+'&force=y'
 	} else {
-		url = '/portal/poll/notifyst?serialno='+mac+'&z=0&l=0&force=y'
+		url = '/portal/poll/notifyst?serialno='+mac+'&force=y'
 	}
 
 	var options = {
@@ -977,7 +978,7 @@ function send_linphone_video()
 			len = 1200;
 		b[73] = len&0xff;
 		b[74] = len>>8;
-		console.log('send video chunk len='+len+' to '+g_linphone_targetip);
+		//console.log('send video chunk len='+len+' to '+g_linphone_targetip);
 		data.copy(b,86,no*1200,no*1200+len);
 		server.send(b,0,b.length, 8302, g_linphone_targetip);
 	}
@@ -985,6 +986,91 @@ function send_linphone_video()
 }
 
 g_linephone_timer=0;
+g_linephone_num=0;
+g_linephone_qrcode_data=null;
+
+function produce_linphone_video(data)
+{
+	const canvas = createCanvas(640, 480);
+	const ctx = canvas.getContext('2d');
+	ctx.font = '40px Arial';
+	//ctx.rotate(0.1);
+	ctx.drawImage(data, 400, 50)
+	const out = fs.createWriteStream('/tmp/ss.jpg');
+	const stream = canvas.createJPEGStream();
+	var i;
+	var phones = g_phones.split(',');
+	console.log('XXXX');
+	console.log(phones);
+	for(i=0;i<phones.length;i++) {
+		if (i != g_linephone_num) {
+			ctx.fillStyle = '#FFF'
+		} else {
+			ctx.fillStyle = '#F00'
+		}
+		ctx.fillText(phones[i],0,i*80+80);
+	}
+	stream.pipe(out);
+	out.on('finish', () => {
+		cmd = "djpeg -bmp /tmp/ss.jpg| cjpeg > /tmp/qq.jpg";
+		exec(cmd,function(error,stout,sterr) {
+			console.log(cmd+'--->'+stout);
+			g_linephone_qrcode_data = fs.readFileSync('/tmp/qq.jpg');
+		});
+
+	});
+
+}
+
+
+function update_video_screen(src_addr,ip)
+{
+	g_send_video_timeout=100;
+	var fname='/tmp/oo.png';
+	if (g_phones=='') {
+		return;
+	}
+	console.log('-------------');
+	console.log(g_phones);
+	var phones = g_phones.split(',');
+	console.log(phones);
+	var url = 'http://portal.homescenario.com/portal/poll/sip3?number='+phones[g_linephone_num];
+	g_linephopne_qrcode_data = null;
+	g_linphone_targetaddr = src_addr;
+	g_linphone_targetip = ip;
+	g_frameno = 0;
+	options = {width:200, height:200, margin:1};
+	qrcode.toFile(fname,url, options,function() {
+		loadImage(fname).then((image) => {
+			produce_linphone_video(image);
+		});
+	});
+	if (g_linephone_timer != 0) {
+		clearInterval(g_linephone_timer);
+	}
+	send_linphone_video();
+	clearTimeout(g_linephone_timer);
+	g_linephone_timer = setInterval(send_linphone_video,1000);
+}
+
+function check_cursor(x,y)
+{
+	var i;
+	if (g_phones=='') return;
+	var phones = g_phones.split(',');
+
+	if (x > 400) return;
+	y -= 20;
+	if (y<0) return;
+	var l = y/80;
+	console.log('l='+l);
+	if (l >= phones.length) {
+		return;
+	}
+	g_linephone_num = Math.round(l);
+	console.log("g_linephone_num="+g_linephone_num);
+}
+
 function intercom_ipcam_watch(msg,rinfo)
 {
 	var op = msg[7]&3;
@@ -1003,36 +1089,7 @@ function intercom_ipcam_watch(msg,rinfo)
 		msg[7] = 0x90 | ASK;
 		msg[8] = CALLANSWER;
 		server.send(msg,0,msg.length, 8302, ip);
-		g_send_video_timeout=100;
-		var fname='/tmp/oo.png';
-		if (g_phones=='') {
-			return;
-		}
-		console.log('-------------');
-		console.log(g_phones);
-		var phones = g_phones.split(',');
-		console.log(phones);
-		var url = 'http://portal.homescenario.com/portal/poll/sip3?number='+phones[0];
-		g_linephopne_qrcode_data = null;
-		g_linphone_targetaddr = src_addr;
-		g_linphone_targetip = ip;
-		g_frameno = 0;
-		options = {width:300, margin:30};
-		qrcode.toFile(fname,url, options,function() {
-			cmd = "ls -l /tmp;convert -resize 640x480! "+fname+" /tmp/qq.jpg";
-			exec(cmd,function(error,stout,sterr) {
-				console.log(cmd+"--->"+stout);
-				cmd = "djpeg -bmp /tmp/qq.jpg| cjpeg > /tmp/ss.jpg";
-				exec(cmd,function(error,stout,sterr) {
-					console.log(cmd+'--->'+stout);
-					g_linephone_qrcode_data = fs.readFileSync('/tmp/ss.jpg');
-				});
-			});
-		});
-		if (g_linephone_timer != 0) {
-			clearInterval(g_linephone_timer);
-		}
-		g_linephone_timer = setInterval(send_linphone_video,1000);
+		update_video_screen(src_addr,ip);
 	} else if (arg == CALLCONFIRM) {
 		msg[7] = 0x90 | REPLY;
 		server.send(msg,0,msg.length, 8302, ip);
@@ -1045,6 +1102,8 @@ function intercom_ipcam_watch(msg,rinfo)
 		var y = msg[59]+msg[60]*256;
 		var ser = msg[61]+msg[62]*256;
 		console.log('\033[41mcursor '+x+' '+y+' \033[m;\n');
+		check_cursor(x,y);
+		update_video_screen(src_addr,ip);
 	} else if (arg == CALLEND) {
 		console.log('>>>>>>>>>>>>>>>>>>>>>>terminal session')
 		msg[7] = 0x90 | REPLY;
@@ -1080,7 +1139,7 @@ function intercom_nsorder(msg,rinfo)
 		b[55] = 68;
 		b[56] = 1;
 		server.send(b,0,b.length, 8300, roomip);
-		console.log('send to '+roomip);
+		console.log('end to '+roomip);
 	}
 }
 
@@ -1309,7 +1368,7 @@ function weather_translate(code,text)
 
 function query_all_equip()
 {
-	exec("/usr/bin/watchdog kick");
+	//exec("/usr/bin/watchdog kick");
 	Network_Fetch(function(cfg) {
 
 		Object.keys(g_list).map(function(m) {
@@ -1457,8 +1516,8 @@ function portal_start_polling()
 	});
 	g_list = new_list;
 	if (com1) {
-		console.log("XXXXXXXXXXXXXXXXX com.IP1="+com.IP+" mac="+mac+" addr="+addr)
-		if (com.IP != undefined) {
+		console.log("XXXXXXXXXXXXXXXXX com.IP1="+com1.IP+" mac="+mac+" addr="+addr)
+		if (com1.IP != undefined) {
 			console.log('YYYYY');
 			portal_report(mac, com1.addr, com.st, com1.num,function(ret) {
 				console.log('portal ret='+ret)
@@ -1719,7 +1778,7 @@ setTimeout(function() {
 setInterval(weather_update, 10*1000);
 setInterval(search_all_equip, 10*1000);
 if (watchdog_init==0) {
-	exec("/usr/bin/watchdog set 16");
+	//exec("/usr/bin/watchdog set 160");
 	watchdog_init = 1;
 }
 
