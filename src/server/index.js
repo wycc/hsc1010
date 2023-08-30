@@ -1517,24 +1517,12 @@ function portal_start_polling()
 	});
 	g_list = new_list;
 	if (com1) {
-		console.log("XXXXXXXXXXXXXXXXX com.IP1="+com1.IP+" mac="+mac+" addr="+addr)
 		if (com1.IP != undefined) {
-			console.log('YYYYY');
 			portal_report(mac, com1.addr, com.st, com1.num,function(ret) {
-				console.log('portal ret='+ret)
-				if (ret == 'ok') {
-					g_portal_ready = 1;
-				} else {
-					g_portal_ready = 0;
-				}
-				clearTimeout(g_portal_timer);
-				g_portal_timer = setTimeout(portal_start_polling,1000);
 			});
 		} else {
-			g_portal_ready = 0;
 		}
 	} else {
-		g_portal_ready = 0;
 	}
 
 }
