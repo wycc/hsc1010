@@ -1,0 +1,10 @@
+<extension name="Local_Extension1">
+	<condition field="destination_number" expression="^($$addr)$">
+	      <action application="set" data="effective_caller_id_number=$$addr"/>
+	      <action application="set" data="core_video_blank_image=false"/>
+	      <action application="set" data="pass-callee-id=false"/>
+	      <param name="send-display-update" value="false" />
+	      <action1 application="bridge" data="sofia/internal/1234@$$papip:5062,[sip_route_uri=sip:1001@homescenario.apexx.com.tw:5566,sip_auth_username=1001,sip_auth_password=123456]sofia/internal/$$sipid@hs"/>
+	      <action application="bridge" data="sofia/internal/1234@$$papip:5062,[sip_route_uri=sip:1001@p.homescenario.com,sip_auth_username=1001,sip_auth_password=123456]sofia/internal/$$sipid@hs"/>
+	</condition>
+</extension>
