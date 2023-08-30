@@ -1516,7 +1516,7 @@ function portal_start_polling()
 		}
 	});
 	g_list = new_list;
-	if (com1) {
+	if (com1&&com) {
 		if (com1.IP != undefined) {
 			portal_report(mac, com1.addr, com.st, com1.num,function(ret) {
 			});
