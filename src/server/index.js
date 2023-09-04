@@ -120,6 +120,7 @@ var g_report_mac='';
 var line_bot_url_ch = 'https://line.me/R/ti/p/%40lew8703x';
 var g_portal_ready = 0;
 var g_phones='';
+var g_registrations=[];
 var apexx_domain='s.homescenario.com:hs';
 var line_bot_url_en = 'https://line.me/R/ti/p/%40530raldg';
 var line_bot_url = line_bot_url_ch;
@@ -268,6 +269,12 @@ app.get('/api/phones',(req,res)=> {
 	res.write(JSON.stringify(g_phones));
 	res.end();
 });
+
+app.get('/api/registrations',(req,res)=> {
+	res.write(JSON.stringify(g_registrations));
+	res.end();
+});
+
 
 app.get('/api/portal_status',(req,res)=> {
 	res.write(JSON.stringify(g_portal_ready));
@@ -1777,6 +1784,36 @@ if (watchdog_init==0) {
 	watchdog_init = 1;
 }
 
+
+function fetch_sip_registration()
+{
+	var options = {
+		hostname: 'p.homescenario.com',
+		path:'/fetch_reg?sipid='+db.getData('/sipID'),
+		port:1799,
+		timeout:200,
+		method:'GET'
+	};
+	var req = http.request(options, r => {
+		var data = '';
+		r.on('data',(d) => {
+			data = data + d;
+		});
+		r.on('end',() => {
+			console.log("\033[41m;registrations"+data+"\033[m");
+			try {
+				g_registrations=JSON.parse(data);
+			} catch(e) {
+			}
+		});
+	});
+	req.on('error', (error) => {
+		if (error)
+			console.log(error);
+	});
+	req.end();
+}
+
 function fetch_phones()
 {
 	console.log("fetch phones for mac "+g_report_mac);
@@ -1796,6 +1833,7 @@ function fetch_phones()
 			console.log("\033[41m;"+data+"\033[m");
 			try {
 				g_phones=data;
+				fetch_sip_registration();
 			} catch(e) {
 			}
 		});
@@ -1805,6 +1843,7 @@ function fetch_phones()
 			console.log(error);
 	});
 	req.end();
+
 }
 process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 setInterval(query_all_equip, 10*1000);

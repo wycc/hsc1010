@@ -46,6 +46,15 @@ export default class Intercom extends Component {
 	  fetch('/api/phones').then(res=>{return res.json()}).then(list => {
 	  	self.setState({phones:list});
 	  });
+	  fetch('/api/registrations').then(res=>{return res.json()}).then(list => {
+		console.log(list);
+		var regs ={};
+		var i;
+		for(i=0;i<list.length;i++) {
+			regs[list[i]['User']] = list[i]['agent'];
+		}
+	  	self.setState({registrations:regs});
+	  });
 	  fetch('/api/report_addr').then(res=>{return res.text()}).then(addr=> {
 		self.setState({report_addr:addr});
 	  });
@@ -211,8 +220,18 @@ export default class Intercom extends Component {
   show_qrcode(p) {
 	  this.setState({qrcode:p});
   }
+
+  find_phone_registration(p) {
+	  try {
+		  var r = this.state.registrations[p];
+		  return r;
+	  } catch(e) {
+		  return 'Not used';
+	  }
+  }
   render_qrcode_phone(p) {
-	  return <span><a onClick={()=> {this.show_qrcode(p)}}>{p}</a>,</span>
+	  var reg = this.find_phone_registration(p);
+	  return <div><a onClick={()=> {this.show_qrcode(p)}}>{p}-{reg}</a></div>
   }
   renderPhones() {
 	  var self = this;
