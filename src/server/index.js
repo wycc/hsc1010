@@ -1044,12 +1044,31 @@ function produce_linphone_video(data)
 	if (g_cursor_x != -1)
 		ctx.fillRect(g_cursor_x-5,g_cursor_y-5,10,10);
 	for(i=0;i<phones.length;i++) {
+		var j;
+		var iphone=0;
+		var android = 0;
+		rr='';
+		for(j=0;j<g_registrations.length;j++) {
+			var reg = g_registrations[j];
+			console.log(reg);
+			if (reg['User'].indexOf(phones[i]) != -1) {
+				var ff = reg['agent'].split('(')[1].split(')')[0];
+				if (rr != '') {
+					rr = rr +' '+ ff;
+				} else {
+					rr = ff;
+				}
+			}
+		}
 		if (i != g_linephone_num) {
 			ctx.fillStyle = '#FFF'
 		} else {
 			ctx.fillStyle = '#F00'
 		}
+		ctx.font = '40px Arial';
 		ctx.fillText(phones[i],0,i*80+80);
+		ctx.font = '20px Arial';
+		ctx.fillText(rr,0,i*80+100);
 	}
 	stream.pipe(out);
 	out.on('finish', () => {
@@ -1413,7 +1432,7 @@ function weather_translate(code,text)
 
 function query_all_equip()
 {
-	exec("/usr/bin/watchdog kick");
+	//exec("/usr/bin/watchdog kick");
 	Network_Fetch(function(cfg) {
 
 		Object.keys(g_list).map(function(m) {
@@ -1812,7 +1831,7 @@ setTimeout(function() {
 setInterval(weather_update, 10*1000);
 setInterval(search_all_equip, 10*1000);
 if (watchdog_init==0) {
-	exec("/usr/bin/watchdog set 30");
+	//exec("/usr/bin/watchdog set 30");
 	watchdog_init = 1;
 }
 
