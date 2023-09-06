@@ -38,6 +38,7 @@ const NSORDER=154;
 const NSSERVERORDER=155
 const IPCAM_WATCH=158;
 const REMOTEFORTIFY=160;
+const SERVERFORTIFY=161;
 const FINDEQUIP=170;
 const OV7725_OPERATE=227;
 const HOSTTOSUB=222;
@@ -615,6 +616,36 @@ server.on('listening',()=>{
 
 server.bind(8500);
 
+function intercom_recv_serverfortify(msg,rinfo)
+{
+	var roomaddr = msg.slice(8,28).toString('ascii');
+	var roomip = `${msg[29]}.${msg[30]}.${msg[31]}.${msg[32]}`;
+
+	if ((msg[7]&3) == ASK) {
+		var oldstate = msg[40];
+		var newstate = msg[34];
+		var fortify_result=msg[41];
+		Object.keys(g_list).map(function(k) {
+			var c = g_list[k];
+			if (c.addr == roomaddr.substr(0,11)+'0') {
+
+				if (newstate == 0)
+					arm = "normal";
+				else if (newstate == 1)
+					arm = "arm";
+				else if (newstate == 2)
+					arm = "home";
+				else
+					arm ="delay";
+				c.st = arm;
+				console.log('161 update '+c.addr +' arm '+arm);
+				msg[7] = REPLY;
+				server.send(msg, 0, msg.length, 8302, c.IP);
+			}
+		});
+	}
+
+}
 
 function intercom_recv_hosttosub(msg,rinfo)
 {
@@ -705,7 +736,7 @@ function portal_report(mac,addr,st,num,cb)
 	if (st) {
 		url = '/portal/poll/notifyst?serialno='+mac+'&arm='+st+'&force=y'
 	} else {
-		url = '/portal/poll/notifyst?serialno='+mac+'&force=y'
+		url = '/portal/poll/notifyst?serialno='+mac+'&arm='+st+'&force=y'
 	}
 
 	var options = {
@@ -747,7 +778,7 @@ function intercom_recv_report_status(msg,rinfo)
 	//msg[7] = REPLY;
 	//server.send(msg,0,msg.length, 8300,rinfo.address);
 	//console.log(msg);
-	//console.log('station '+roomaddr+' report mac='+mac+'roomip='+roomip);
+	console.log('station '+roomaddr+' report mac='+mac+' roomip='+roomip);
 	if (g_list.hasOwnProperty(mac) == false) {
 		g_list[mac] = new Object();
 	}
@@ -780,7 +811,6 @@ function intercom_recv_report_status(msg,rinfo)
 		}
 	} else {
 		if (roomaddr[0] == 'S' && roomaddr[11] == '0') {
-			return;
 			var arm;
 			if (msg[34] == 0)
 				arm = "normal";
@@ -1163,7 +1193,7 @@ function handle_message(msg,rinfo)
 		var op = msg[7];
 		var arg = msg[8];
 
-		//console.log('cmd='+cmd+' op='+op+' arg='+arg+' '+JSON.stringify(rinfo));
+		console.log('cmd='+cmd+' op='+op+' arg='+arg+' '+JSON.stringify(rinfo));
 		//console.log(msg);
 
 		if ( cmd == REPORTSTATUS) {
@@ -1179,6 +1209,8 @@ function handle_message(msg,rinfo)
 			intercom_recv_alarm(msg,rinfo);
 		} else if (cmd == HOSTTOSUB) {
 			intercom_recv_hosttosub(msg,rinfo);
+		} else if (cmd == SERVERFORTIFY) {
+			intercom_recv_serverfortify(msg,rinfo);
 		} else if (cmd == UPLOADFILE) {
 			intercom_recv_uploadfile(msg,rinfo);
 		} else if (cmd == SEARCHALLEQUIP) {
