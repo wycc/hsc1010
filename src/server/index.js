@@ -122,6 +122,7 @@ var line_bot_url_ch = 'https://line.me/R/ti/p/%40lew8703x';
 var g_portal_ready = 0;
 var g_phones='';
 var g_registrations=[];
+var g_reg_changed=0;
 var apexx_domain='s.homescenario.com:hs';
 var line_bot_url_en = 'https://line.me/R/ti/p/%40530raldg';
 var line_bot_url = line_bot_url_ch;
@@ -778,7 +779,7 @@ function intercom_recv_report_status(msg,rinfo)
 	//msg[7] = REPLY;
 	//server.send(msg,0,msg.length, 8300,rinfo.address);
 	//console.log(msg);
-	console.log('station '+roomaddr+' report mac='+mac+' roomip='+roomip);
+	//console.log('station '+roomaddr+' report mac='+mac+' roomip='+roomip);
 	if (g_list.hasOwnProperty(mac) == false) {
 		g_list[mac] = new Object();
 	}
@@ -1142,7 +1143,7 @@ function intercom_ipcam_watch(msg,rinfo)
 	var addr = msg.slice(33,38).toString('ascii');
 	if (addr[0] == 'S')
 		addr =msg.slice(33,45).toString('ascii');
-	console.log('\033[41mop='+arg+' from '+ip+'\33[m');
+	//console.log('\033[41mop='+arg+' from '+ip+'\33[m');
 	//console.log(msg);
 	//console.log(addr);
 	if (ip == '0.0.0.0') return;
@@ -1155,6 +1156,9 @@ function intercom_ipcam_watch(msg,rinfo)
 	} else if (arg == CALLCONFIRM) {
 		msg[7] = 0x90 | REPLY;
 		server.send(msg,0,msg.length, 8302, ip);
+		if (g_reg_changed) {
+			update_video_screen(src_addr,ip);
+		}
 	} else if (arg == CALLUP || arg == CALLDOWN) {
 		console.log('\033[41m;get media data\033[m;\n');
 	} else if (arg == CURSOR) {
@@ -1212,7 +1216,7 @@ function handle_message(msg,rinfo)
 		var op = msg[7];
 		var arg = msg[8];
 
-		console.log('cmd='+cmd+' op='+op+' arg='+arg+' '+JSON.stringify(rinfo));
+		//console.log('cmd='+cmd+' op='+op+' arg='+arg+' '+JSON.stringify(rinfo));
 		//console.log(msg);
 
 		if ( cmd == REPORTSTATUS) {
@@ -1432,7 +1436,7 @@ function weather_translate(code,text)
 
 function query_all_equip()
 {
-	//exec("/usr/bin/watchdog kick");
+	exec("/usr/bin/watchdog kick");
 	Network_Fetch(function(cfg) {
 
 		Object.keys(g_list).map(function(m) {
@@ -1831,7 +1835,7 @@ setTimeout(function() {
 setInterval(weather_update, 10*1000);
 setInterval(search_all_equip, 10*1000);
 if (watchdog_init==0) {
-	//exec("/usr/bin/watchdog set 30");
+	exec("/usr/bin/watchdog set 30");
 	watchdog_init = 1;
 }
 
@@ -1851,10 +1855,29 @@ function fetch_sip_registration()
 			data = data + d;
 		});
 		r.on('end',() => {
-			console.log("\033[41m;registrations"+data+"\033[m");
+			//console.log("\033[41m;registrations"+data+"\033[m");
 			try {
-				g_registrations=JSON.parse(data);
+				
+				var new_reg=JSON.parse(data);
+				var k;
+				var changed = 0;
+
+				if (new_reg.length != g_registrations.length) {
+					changed = 1;
+				} else {
+					for(k=0;k<g_registrations.length;k++) {
+						if (new_reg[k]['agent'] != g_registrations[k]['agent']) {
+							changed = 1;
+							break;
+						}
+					}
+				}
+				g_registrations = new_reg;
+				if (changed) {
+					g_reg_changed = 1;
+				}
 			} catch(e) {
+				console(e);
 			}
 		});
 	});
