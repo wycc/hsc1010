@@ -604,14 +604,18 @@ app.get('/api/password',function(req,res,next) {
 	try {
 		my_user = db.getData('/user');
 	} catch(e) {
+		console.log(e);
 	}
 	try {
-		my_pass = db.getData('/passwd');
+		my_passwd = db.getData('/passwd');
 	} catch(e) {
+		console.log(e);
 	}
 	if (cmd == 'set') {
 		db.push('/user', user,true);
 		db.push('/passwd', pass,true);
+		console.log('change to '+user+' '+pass);
+
 
 		res.write('ok');
 		res.end();
@@ -619,6 +623,8 @@ app.get('/api/password',function(req,res,next) {
 		res.write(my_user);
 		res.end();
 	} else {
+		console.log('my_user is '+my_user);
+		console.log('my_passwd is '+my_passwd);
 		if ( (user != my_user) || (pass != my_passwd)) {
 			res.write('err');
 			res.end();
