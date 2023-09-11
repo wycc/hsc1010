@@ -227,13 +227,16 @@ export default class Intercom extends Component {
 			}
 		  }
 	  }
-	  if (reg == '')
-		  return <li>{la('Not used')}</li>;
 	  return reg;
   }
   render_qrcode_phone(p) {
 	  var reg = this.find_phone_registration(p);
-	  return <div><a onClick={()=> {this.show_qrcode(p)}}><table><tr><td style={{verticalAlign:'top'}}>{p}</td><td><ul>{reg}</ul></td></tr></table></a></div>
+	  if (reg == '') {
+		  reg = <li>{la('Not used')}</li>
+		  return <div><a onClick={()=> {this.show_qrcode(p)}}><table><tr><td style={{verticalAlign:'top'}}>{p}</td><td><ul>{reg}</ul></td></tr></table></a></div>
+	  } else {
+		  return <div><a onClick={()=> {this.show_qrcode('')}}><table><tr><td style={{verticalAlign:'top'}}>{p}</td><td><ul>{reg}</ul></td></tr></table></a></div>
+	  }
   }
   renderPhones() {
 	  var self = this;

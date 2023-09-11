@@ -55,6 +55,13 @@ lang_cht['Default Gateway:']='預設閘道器:';
 lang_cht['Mask:']='網路遮罩:';
 lang_cht['Mask(ex. 8,16,24):']='網路遮罩(8,16,24)';
 lang_cht['Not used']='未使用';
+lang_cht['Change Password']='更改密碼';
+lang_cht['Logout']='登出';
+lang_cht['User:']='使用者:';
+lang_cht['Password:']='密碼:';
+lang_cht['Password(again):']='密碼(再一次):';
+lang_cht['Login']='登入';
+lang_cht['Login Failed']='登入失敗';
 lang_cht['']='';
 lang_cht['']='';
 var lang={};
@@ -95,4 +102,4 @@ export default function la(msg) {
 		return msg;
 }
 
-export {la,lang_set,lang_get,lang_init};
+export {la,lang_set,lang_get,lang_init,lang_change};

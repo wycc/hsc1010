@@ -18,6 +18,11 @@ export default class Intercom extends Component {
 	    }
 	    self.setState({ip:cfg.ip,mask:cfg.mask,gateway:cfg.gateway,sshport:cfg.sshport,networkdetect:cfg.networkdetect});
     });
+    fetch('/api/password?cmd=get').then( res => {
+	    return res.text();
+    }).then(data => {
+	    self.setState({user:data});
+    });
   }
 
   onLang= (event) => {
@@ -63,6 +68,9 @@ export default class Intercom extends Component {
   onEdit=(event) => {
 	  this.setState({mode:'edit'});
   }
+  onAccount=(event) => {
+	  this.setState({mode:'pass',pass:'',pass_again:''});
+  }
   onIP=(event)=>{
 	  this.setState({ip:event.target.value});
   }
@@ -75,6 +83,16 @@ export default class Intercom extends Component {
   onSSHPort=(event)=>{
 	  this.setState({sshport:event.target.value});
   }
+  onUser=(event)=>{
+	  this.setState({user:event.target.value});
+  }
+  onPass=(event)=>{
+	  this.setState({pass:event.target.value});
+  }
+  onPassAgain=(event)=>{
+	  this.setState({pass_again:event.target.value});
+  }
+
 
   onNetworkDetect=(event)=>{
 	  this.setState({networkdetect:event.target.value});
@@ -83,6 +101,22 @@ export default class Intercom extends Component {
 
   onAbort=(event)=> {
 	  this.setState({mode:'normal'});
+  }
+  onPassSet=(event) => {
+	  if (this.state.pass != this.state.pass_again) {
+		  alert(la('Passwords does not match'));
+		  return;
+	  }
+	  fetch('/api/password?cmd=set&user='+this.state.user+'&pass='+this.state.pass).then(res => {
+		return res.text();
+	  }).then(r=> {
+		  if (r == 'ok') {
+			  alert(la('Account is changed'))
+	  		  this.setState({mode:'normal'});
+		  } else {
+			  alert(la('Failed to change account'));
+		  }
+	  });
   }
 
   render() {
@@ -115,6 +149,7 @@ export default class Intercom extends Component {
 			</div>
 		);
 	}
+	
 	if (this.state.mode == 'edit') {
 		return (
 				<div>
@@ -133,6 +168,21 @@ export default class Intercom extends Component {
 
 				</div>
 		)
+	} else if (this.state.mode == 'pass') {
+		return (
+				<div>
+					{la('User:')}
+					<TextField value={this.state.user} onChange={this.onUser}/><br/>
+					{la('Password:')}
+					<TextField value={this.state.pass} type='password' onChange={this.onPass}/><br/>
+			                {la('Password(again):')}
+					<TextField value={this.state.pass_again} type='password' onChange={this.onPassAgain} /><br/>
+					<Button onClick={this.onPassSet}>{la("Set")}</Button>
+					<Button onClick={this.onAbort}>{la("Abort")}</Button><br/>
+
+				</div>
+		)
+
 	} else {
 		return (
 				<div>
@@ -145,7 +195,9 @@ export default class Intercom extends Component {
 					{this.state.sshport} <br/>
 					{la('Network Detect(0:disable,1:enable):')}
 					{this.state.networkdetect} <br/>
-					<Button onClick={this.onEdit}>{la("Edit Network")}</Button><br/>
+					<Button onClick={this.onEdit}>{la("Edit Network")}</Button>
+					<Button onClick={this.onAccount}>{la("Change Password")}</Button>
+					<br/>
 					<br/>
 					{la('Language')} : 
 					<select onChange={this.onLang}> 

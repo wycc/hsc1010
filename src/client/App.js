@@ -4,18 +4,80 @@ import ReactImage from './react.png';
 import 'font-awesome/css/font-awesome.min.css';
 import 'bootstrap-css-only/css/bootstrap.min.css'; 
 import 'mdbreact/dist/css/mdb.css';
-import { Button } from 'mdbreact';
+import { Button, TextField } from 'mdbreact';
 import { BrowserRouter as Router } from 'react-router-dom';
-import { Fa, SideNavItem, SideNavCat, SideNavNav, SideNav, SideNavLink, Container, Row } from 'mdbreact';
+import { Fa, SideNavItem, SideNavCat, SideNavNav, SideNav, SideNavLink, Container, Box, Row } from 'mdbreact';
 import { Navbar, NavbarBrand, NavbarNav, NavItem, NavLink, NavbarToggler, Collapse } from 'mdbreact';
 import Intercom from './Intercom';
 import Message from './Message';
 import Network from './Network';
 import Wizard from './Wizard';
-import {la,lang_set,lang_get,lang_init} from './lang';
+import {la,lang_set,lang_get,lang_init,lang_change} from './lang';
 
+
+class Login extends Component {
+  	state = { user:'', pass:''} 
+  	onUser=(event)=>{
+		  this.setState({user:event.target.value});
+	}
+	onPass=(event)=>{
+	  this.setState({pass:event.target.value});
+	}
+	onPassSet=(event) => {
+	  fetch('/api/password?cmd=check&user='+this.state.user+'&pass='+this.state.pass).then(res => {
+		return res.text();
+	  }).then(r=> {
+		if (r == 'ok') {
+			var d = new Date();
+			d.setTime(d.getTime() + (60 * 60 * 1000));
+			var expires = "expires=" + d.toGMTString();
+			document.cookie = "session_mui=test" + "; " + expires + '; path=/';
+			window.location.reload();
+		} else {
+			alert(la('Login Failed'));
+		}
+	  });
+		
+	}
+	render() {
+		var style= { marginTop: 8,
+			     display: 'flex',
+			     flexDirection: 'column',
+			     alignItems: 'center'};
+		return (
+				<Container component="main" maxWidth="xs" width='25ch'>
+					{la('User:')}
+					<TextField value={this.state.user} onChange={this.onUser}/><br/>
+					{la('Password:')}
+					<TextField value={this.state.pass} type='password' onChange={this.onPass}/><br/>
+					<Button onClick={this.onPassSet}>{la("Login")}</Button>
+				</Container>
+		);
+	}
+}
 
 export default class App extends Component {
+  state = { lang:''}
+  componentDidMount() {
+	var self = this;
+	fetch('/api/lang?cmd=get')
+		.then(res => {return res.text()})
+		.then( ret => {
+			lang_change(ret);
+			self.setState({lang:ret});
+		});
+  }
+  render() {
+	  var login = document.cookie.indexOf('session_mui') != -1;
+	  if (login) {
+		  return <App1/>
+	  } else {
+		  return <Login/>
+	  }
+  }
+}
+
+class App1 extends Component {
   state = { list: [], isLeftOpen:false, collapseID:'',page:'loading',sipID:'' };
 
   componentDidMount() {
@@ -40,7 +102,6 @@ export default class App extends Component {
 		self.setState({ page:'wizard'});
       });
 
-      lang_init();
   }
 
   renderList() {
@@ -111,6 +172,13 @@ export default class App extends Component {
 	  	.then(res => { return res.text()})
 	  	.then(ret => {});
   }
+  onLogout = () => {
+	var d = new Date();
+	d.setTime(d.getTime() -1);
+	var expires = "expires=" + d.toGMTString();
+	document.cookie = "session_mui=test; expires=" + expires + '; path=/';
+	window.location.reload();
+  }
   render() {
     const { username } = this.state;
 
@@ -144,6 +212,9 @@ export default class App extends Component {
 						</NavItem>
 						<NavItem active>
 							<NavLink to="#!" onClick={this.onShutdown}>{la('Shutdown')}</NavLink>
+						</NavItem>
+						<NavItem active>
+							<NavLink to="#!" onClick={this.onLogout}>{la('Logout')}</NavLink>
 						</NavItem>
 					</NavbarNav>
 				</Collapse>

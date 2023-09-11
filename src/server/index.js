@@ -594,6 +594,41 @@ app.get('/api/sendmessage',function(req,res,next) {
 	rr.end();
 });
 
+app.get('/api/password',function(req,res,next) {
+	var user = req.query.user;
+	var pass = req.query.pass;
+	var my_user='admin';
+	var my_passwd = '1111';
+	var cmd = req.query.cmd;
+
+	try {
+		my_user = db.getData('/user');
+	} catch(e) {
+	}
+	try {
+		my_pass = db.getData('/passwd');
+	} catch(e) {
+	}
+	if (cmd == 'set') {
+		db.push('/user', user,true);
+		db.push('/passwd', pass,true);
+
+		res.write('ok');
+		res.end();
+	} else if (cmd == 'get') {
+		res.write(my_user);
+		res.end();
+	} else {
+		if ( (user != my_user) || (pass != my_passwd)) {
+			res.write('err');
+			res.end();
+		} else {
+			res.write('ok');
+			res.end();
+		}
+	
+	}
+});
 
 app.listen(('127.0.0.1',8080), () => console.log('Listening on port 8080!'));
 
@@ -628,7 +663,7 @@ function intercom_recv_serverfortify(msg,rinfo)
 		var fortify_result=msg[41];
 		Object.keys(g_list).map(function(k) {
 			var c = g_list[k];
-			if (c.addr == roomaddr.substr(0,11)+'0') {
+			if (c.addr == roomaddr.substr(0,12)) {
 
 				if (newstate == 0)
 					arm = "normal";
@@ -642,6 +677,59 @@ function intercom_recv_serverfortify(msg,rinfo)
 				console.log('161 update '+c.addr +' arm '+arm);
 				msg[7] = REPLY;
 				server.send(msg, 0, msg.length, 8302, c.IP);
+			}
+		});
+	} else if (msg[7]==3) {
+		var addr = msg.slice(9,20).toString('ascii').substr(0,10)+'0';
+		var alarm = msg[37] | (msg[38]<<8);
+		var lang = db.getData('/lang');
+		if (lang == 'en') {
+			var alarm_msg = ('Receive Message')+' '+alarm_to_str(alarm);
+			var params = {kind: 'attention', room:addr, title: 'Alarm', body: alarm_msg};
+		} else {
+			var alarm_msg = ('報警測試');
+			var params = {kind: 'attention', room:addr, title: '報警', body: alarm_msg};
+		}
+		var postData = querystring.stringify(params);
+		console.log(postData);
+		var options = {
+			hostname:'127.0.0.1',
+			port:1780,
+			path:'/ins/send_message?'+postData,
+			method:'GET',
+			timeout:200,
+			//headers: {
+			//	'Content-Type':'application/x-www-form-urlencodded',
+			//	'Content-Length': Buffer.byteLength(postData)
+			//}
+		};
+		var rr = http.request(options,function(r) {
+			console.log(r.statusCode);
+			if (r.statusCode != 200) {
+				console.log(r);
+				return;
+			}
+			let data='';
+			r.on('data', (chunk) => {data = data + chunk;});
+			r.on('end', () => {
+				console.log('------------------> done');
+				console.log(data);
+			});
+		});
+
+		rr.on('error', (e) => {
+			console.log(e);
+		});
+		console.log('sent');
+		rr.write(postData);
+		rr.end();
+		Object.keys(g_list).map(function(k) {
+			var c = g_list[k];
+			if (c.addr == roomaddr.substr(0,12)) {
+				msg[7] = REPLY;
+				server.send(msg, 0, msg.length, 8302, c.IP);
+				console.log(c);
+				console.log("response to server "+c.IP);
 			}
 		});
 	}
@@ -861,10 +949,14 @@ function alarm_to_str(alarm)
 	var sss='';
 	console.log('alarm='+alarm);
 
+	var lang = db.getData('/lang');
 	for(i=0;i<8;i++) {
 		if (alarm & (1<<i)) {
-			//sss = sss + "Zone " + (i+1);
-			sss = sss + "防區 " + (i+1);
+			if (lang == 'en') {
+				sss = sss + "Zone " + (i+1);
+			} else {
+				sss = sss + "防區 " + (i+1);
+			}
 		}
 	}
 	return sss;
@@ -872,12 +964,28 @@ function alarm_to_str(alarm)
 
 function intercom_recv_alarm(msg,rinfo)
 {
-	var addr = msg.slice(9,20).toString('ascii');
+	var roomaddr = msg.slice(8,28).toString('ascii');
+	var addr = msg.slice(9,20).toString('ascii').substr(0,10)+'0';
 	var alarm = msg[37] | (msg[38]<<8);
-	//var alarm_msg = ('Receive Message')+' '+alarm_to_str(alarm);
-	//var params = {kind: 'attention', room:addr, title: 'Alarm', body: alarm_msg};
-	var alarm_msg = ('收到報警')+' '+alarm_to_str(alarm);
-	var params = {kind: 'attention', room:addr, title: '報警', body: alarm_msg};
+	var lang = db.getData('/lang');
+	if (lang == 'en') {
+		var alarm_msg = ('Receive Message')+' '+alarm_to_str(alarm);
+		var params = {kind: 'attention', room:addr, title: 'Alarm', body: alarm_msg};
+	} else {
+		var alarm_msg = ('收到報警')+' '+alarm_to_str(alarm);
+		var params = {kind: 'attention', room:addr, title: '報警', body: alarm_msg};
+	}
+	Object.keys(g_list).map(function(k) {
+		var c = g_list[k];
+		if (c.addr == roomaddr.substr(0,12)) {
+			msg[7] = REPLY;
+			if (c.IP != undefined) {
+				server.send(msg, 0, msg.length, 8302, c.IP);
+				console.log(c);
+				console.log("response to server "+c.IP);
+			}
+		}
+	});
 	var postData = querystring.stringify(params);
 	console.log(postData);
 	var options = {
@@ -1034,11 +1142,11 @@ function produce_linphone_video(data)
 	const ctx = canvas.getContext('2d');
 	ctx.font = '40px Arial';
 	//ctx.rotate(0.1);
-	ctx.drawImage(data, 400, 50)
 	const out = fs.createWriteStream('/tmp/ss.jpg');
 	const stream = canvas.createJPEGStream();
 	var i;
 	var phones = g_phones.split(',');
+
 	console.log('XXXX');
 	console.log(phones);
 	ctx.fillStyle = '#FFF'
@@ -1064,6 +1172,9 @@ function produce_linphone_video(data)
 		if (i != g_linephone_num) {
 			ctx.fillStyle = '#FFF'
 		} else {
+			if (rr == '') {
+				ctx.drawImage(data, 400, 50)
+			}
 			ctx.fillStyle = '#F00'
 		}
 		ctx.font = '40px Arial';
@@ -1269,7 +1380,7 @@ function intercom_recv_uploadfile(msg,rinfo)
 	var op = msg[7]&3;
 
 	if (op == 1) {
-		var addr = msg.slice(10,10+11).toString();
+		var addr = msg.slice(10,10+10).toString()+'0';
 		var ip = msg[29]+'.'+msg[30]+'.'+msg[31]+'.'+msg[32];
 		var file = msg.slice(33,33+8).toString();
 		if (file == 'pass.txt') {
@@ -1473,7 +1584,7 @@ function query_all_equip()
 			b[46] = parseInt(ips[2]);
 			b[47] = parseInt(ips[3]);
 			var targetaddr = db.getData('/roomID')
-			if (targetaddr == addr.substr(1) && (g_phones != '')) {
+			if (targetaddr.substr(0,10) == addr.substr(1,10) && (g_phones != '')) {
 				b[44+24*8] = 0xaa;
 				b[44+24*8+1] = 0xff;
 				var siplist = g_phones;
