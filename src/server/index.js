@@ -1141,7 +1141,7 @@ function send_linphone_video()
 g_linephone_timer=0;
 g_linephone_num=0;
 g_linephone_qrcode_data=null;
-
+g_disable_click = 0;
 function produce_linphone_video(data)
 {
 	const canvas = createCanvas(640, 480);
@@ -1180,6 +1180,16 @@ function produce_linphone_video(data)
 		} else {
 			if (rr == '') {
 				ctx.drawImage(data, 400, 50)
+				g_check_btn = false;
+			} else {
+				if (rr != 'deleting') {
+					g_check_btn = true;
+					ctx.fillStyle = '#F00'
+					ctx.fillRect(350,50,250,80);
+					ctx.font = '20px Arial';
+					ctx.fillStyle = '#FFF'
+					ctx.fillText("click to delete phone",380,100);
+				}
 			}
 			ctx.fillStyle = '#F00'
 		}
@@ -1231,6 +1241,21 @@ function update_video_screen(src_addr,ip)
 	g_linephone_timer = setInterval(send_linphone_video,1000);
 }
 
+function delete_phone(p)
+{
+	var url ='http://p.homescenario.com:1799/replace_number?orig='+p;
+	http.get(url, function(r) {
+		var data = new Stream();
+		r.on('data', function(chunk) {
+			data.push(chunk);
+		});
+		r.on('end',function() {
+			console.log(url);
+			console.log(data);
+		});
+	});
+}
+
 function check_cursor(x,y)
 {
 	var i;
@@ -1238,6 +1263,23 @@ function check_cursor(x,y)
 	var phones = g_phones.split(',');
 	g_cursor_x = x;
 	g_cursor_y = y;
+	if (g_check_btn&&(g_disable_click == 0)) {
+		if ((g_cursor_x > 350) && (g_cursor_x < 500) && (g_cursor_y > 50) && (g_cursor_y < 130)) {
+			// delete the current phone number
+			delete_phone(phones[g_linephone_num]);
+			for(j=0;j<g_registrations.length;j++) {
+				var reg = g_registrations[j];
+				if (reg['User'].indexOf(phones[g_linephone_num]) != -1) {
+					reg['agent']='(deleting)';
+				}
+			}
+			g_reg_changed=1;
+			g_disable_click = 1;
+			setTimeout(function() {
+				g_disable_click = 0;
+			},2000);
+		}
+	}
 
 	if (x > 400) return;
 	y -= 40;
@@ -1247,6 +1289,7 @@ function check_cursor(x,y)
 	if (l >= phones.length) {
 		return;
 	}
+
 	g_linephone_num = Math.round(l);
 	console.log("g_linephone_num="+g_linephone_num);
 }
@@ -1275,6 +1318,7 @@ function intercom_ipcam_watch(msg,rinfo)
 		server.send(msg,0,msg.length, 8302, ip);
 		if (g_reg_changed) {
 			update_video_screen(src_addr,ip);
+			g_reg_changed = 0;
 		}
 	} else if (arg == CALLUP || arg == CALLDOWN) {
 		console.log('\033[41m;get media data\033[m;\n');
@@ -1303,27 +1347,31 @@ function intercom_nsorder(msg,rinfo)
 	roomaddr2 = toAddress(msg.slice(32,44));
 	roomip2 = `${msg[52]}.${msg[53]}.${msg[54]}.${msg[55]}`
 	console.log('addr order '+roomaddr2);
-	if (roomaddr2.slice(0,5) == 'P9992') {
-		var b = new Buffer(1024);
-		b.fill(0);
-		console.log(msg);
-		msg.slice(0,32).copy(b);
-		b[7] = 0x80 | 2;
-		b[32] = 1;
+	
+	Network_Fetch(function(cfg) {
+		if (roomaddr2.slice(0,5) == 'P9992') {
+			var b = new Buffer(1024);
+			b.fill(0);
+			console.log(msg);
+			msg.slice(0,32).copy(b);
+			b[7] = 0x80 | 2;
+			b[32] = 1;
 
-		b[33] = 'P'.charCodeAt(0);
-		b[34] = '9'.charCodeAt(0);
-		b[35] = '9'.charCodeAt(0);
-		b[36] = '9'.charCodeAt(0);
-		b[37] = '2'.charCodeAt(0);
-		b[38] = 0;
-		b[53] = 192;
-		b[54] = 168;
-		b[55] = 68;
-		b[56] = 1;
-		server.send(b,0,b.length, 8300, roomip);
-		console.log('end to '+roomip);
-	}
+			b[33] = 'P'.charCodeAt(0);
+			b[34] = '9'.charCodeAt(0);
+			b[35] = '9'.charCodeAt(0);
+			b[36] = '9'.charCodeAt(0);
+			b[37] = '2'.charCodeAt(0);
+			b[38] = 0;
+			var ips=cfg['ip'].split('.');
+			b[53] = parseInt(ips[0]);
+			b[54] = parseInt(ips[1]);
+			b[55] = parseInt(ips[2]);
+			b[56] = parseInt(ips[3]);
+			server.send(b,0,b.length, 8300, roomip);
+			console.log('end to '+roomip);
+		}
+	});
 }
 
 function handle_message(msg,rinfo)
@@ -1553,7 +1601,7 @@ function weather_translate(code,text)
 
 function query_all_equip()
 {
-	exec("/usr/bin/watchdog kick");
+	//exec("/usr/bin/watchdog kick");
 	Network_Fetch(function(cfg) {
 
 		Object.keys(g_list).map(function(m) {
@@ -1633,9 +1681,35 @@ function search_all_equip()
 	b[42] = (g_portal_ready==0)?0xC0:0xC1;
         //console.log('38='+b[38]+' 39'+b[39]);
         //console.log('Search all equipments b[42]='+b[42]);
-        server.send(b,0,b.length,8300,'192.168.68.255');
+        server.send(b,0,b.length,8300,'255.255.255.255');
+        //server.send(b,0,b.length,8300,'192.168.68.255');
         
 }
+
+// when the regid is 000000, it will be used to refresh the serialno of the LineGroup instead of a registraion code
+g_count=20;
+function refresh_serialno(addr,mac)
+{
+	g_count = g_count - 1;
+	if (g_count!=0) {
+		return;
+	}
+	g_count = 20;
+	var url = 'http://127.0.0.1:1780/ins/setid?room=' + addr + '&regid=000000&passcode=1234&serialno='+mac;
+	try {
+		http.get(url, function (r) { 
+			var data = '';
+			r.on('data', function (chunk) {
+				data = data + chunk;
+			});
+			r.on('end', function () {
+				console.log(data);
+			});
+		}).on('error', (e) => {console.log(e)});
+	} catch(e) {
+	}
+}
+
 function portal_start_polling()
 {
 	g_portal_timer = setTimeout(portal_start_polling,3000);
@@ -1656,6 +1730,18 @@ function portal_start_polling()
 			g_report_mac = mac;
 			g_report_ip = c.IP;
 		}
+
+		// When hsc48 is available, we need to use the MAC of the HSC48
+		if (g_has_hsc48) {
+			if ((c.addr[11] == '7') && (c.addr[0] == 'S') && (c.addr.substr(1,10)==addr.substr(0,10))) {
+				refresh_serialno(addr,m);
+			}
+		} else {
+			if ((c.addr[11] == '0') && (c.addr[0] == 'S') && (c.addr.substr(1,10)==addr.substr(0,10))) {
+				refresh_serialno(addr,m);
+			}
+		}
+
 		if (now-c.time < 60*1000) {
 			new_list[m] = c;
 		}
@@ -1952,7 +2038,7 @@ setTimeout(function() {
 setInterval(weather_update, 10*1000);
 setInterval(search_all_equip, 10*1000);
 if (watchdog_init==0) {
-	exec("/usr/bin/watchdog set 30");
+	//exec("/usr/bin/watchdog set 30");
 	watchdog_init = 1;
 }
 
@@ -2023,7 +2109,10 @@ function fetch_phones()
 		r.on('end',() => {
 			console.log("\033[41m;"+data+"\033[m");
 			try {
-				g_phones=data;
+				if (g_phones != data) {
+					g_phones=data;
+					g_reg_changed=1;
+				}
 				fetch_sip_registration();
 			} catch(e) {
 			}
