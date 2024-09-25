@@ -1167,7 +1167,11 @@ function produce_linphone_video(data)
 			var reg = g_registrations[j];
 			console.log(reg);
 			if (reg['User'].indexOf(phones[i]) != -1) {
-				var ff = reg['agent'].split('(')[1].split(')')[0];
+				try {
+					var ff = reg['agent'].split('(')[1].split(')')[0];
+				} catch(e) {
+					var ff = reg['agent'].split(' ')[0];
+				}
 				if (rr != '') {
 					rr = rr +' '+ ff;
 				} else {
